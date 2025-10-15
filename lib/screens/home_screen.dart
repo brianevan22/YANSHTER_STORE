@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:badges/badges.dart' as badges;
 import '../models/base_item.dart';
 import 'kategori_screen.dart';
 import 'keranjang_page.dart';
+import 'login_page.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String nama; // ini berupa email
+  final String nama;
   const HomeScreen({super.key, required this.nama});
 
   @override
@@ -29,9 +32,51 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        title: const Text(
+          "Konfirmasi Logout",
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          "Apakah kamu yakin ingin keluar?",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Batal", style: TextStyle(color: Colors.white70)),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          TextButton(
+            child: const Text(
+              "Logout",
+              style: TextStyle(color: Colors.redAccent),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('email');
+
+      if (context.mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Ambil nama sebelum tanda @ dari email
     final namaUser = widget.nama.contains("@")
         ? widget.nama.split("@")[0]
         : widget.nama;
@@ -45,43 +90,55 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Selamat Datang, $namaUser"),
+        backgroundColor: const Color(0xFF1E1E1E),
+        automaticallyImplyLeading: false,
+        leadingWidth: 60,
+        leading: IconButton(
+          icon: const Icon(Icons.logout, color: Colors.white, size: 28),
+          tooltip: "Logout",
+          onPressed: _logout,
+        ),
+        title: Text(
+          "Selamat Datang, $namaUser",
+          style: const TextStyle(color: Colors.white),
+        ),
         actions: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.shopping_cart),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => KeranjangPage(
-                        keranjang: keranjang,
-                        nama: widget.nama,
-                        onRemove: removeFromKeranjang,
-                      ),
-                    ),
-                  );
-                },
+          // ✅ Badge keranjang pakai library badges
+          badges.Badge(
+            showBadge: keranjang.isNotEmpty,
+            badgeContent: Text(
+              '${keranjang.length}',
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
+            badgeStyle: const badges.BadgeStyle(
+              badgeColor: Colors.redAccent,
+              padding: EdgeInsets.all(6),
+            ),
+            position: badges.BadgePosition.topEnd(top: 6, end: 6),
+            child: IconButton(
+              icon: const Icon(
+                Icons.shopping_cart,
+                color: Colors.white,
+                size: 28,
               ),
-              if (keranjang.isNotEmpty)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: CircleAvatar(
-                    radius: 10,
-                    backgroundColor: Colors.red,
-                    child: Text(
-                      "${keranjang.length}",
-                      style: const TextStyle(fontSize: 12, color: Colors.white),
+              tooltip: "Keranjang",
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => KeranjangPage(
+                      keranjang: keranjang,
+                      nama: widget.nama,
+                      onRemove: removeFromKeranjang,
                     ),
                   ),
-                ),
-            ],
+                );
+              },
+            ),
           ),
         ],
       ),
+
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: kategori.length,
